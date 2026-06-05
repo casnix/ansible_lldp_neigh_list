@@ -7,6 +7,7 @@ PADDED_BASE_NUM: "006" # Site or facility code as a three character string, used
 SWITCH_NUM: 254 # What switch are we in the topology?
 INT_FULL_RANGE: "Gi0/0/0 - 1" # Self explanatory.  Excludes OOBM ports.
 hostMgmtIP: 10.88.6.254 # Primary OOBM ip
+ansible_host: 10.88.6.254 # Primary OOBM ip
 hostBkMgmtIP: 10.89.6.254 # Backup to OOBM
 oobmPort: "GigabitEthernet0" # Self explanatory.
 MODEL: ISR4321
