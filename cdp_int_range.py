@@ -84,28 +84,48 @@ def _split_intf(name: str) -> tuple[str, int] | None:
     return None
 
 
-def _collapse_to_ranges(numbers: list[int]) -> str:
+def _collapse_to_range_segments(prefix: str, numbers: list[int]) -> list[str]:
     """
-    Collapse a sorted list of integers into Cisco-style range strings.
+    Collapse a sorted list of port integers into Cisco-correct range segments
+    for a given interface prefix.
 
-    [1, 2, 3, 7, 8] -> "1 - 3, 7 - 8"
-    [5]             -> "5"
+    Rules:
+    - Consecutive runs of 2+ ports are written as ``<prefix><start> - <end>``
+      (only the leading segment needs the full prefix for a run).
+    - A single isolated port is written as ``<prefix><port>`` (full name,
+      because Cisco does not allow bare port numbers without their module path
+      in a non-consecutive position).
+
+    Examples (prefix="Gi1/0/"):
+        [1, 2, 3]          -> ["Gi1/0/1 - 3"]
+        [1, 2, 3, 8]       -> ["Gi1/0/1 - 3", "Gi1/0/8"]
+        [6, 37, 39]        -> ["Gi1/0/6", "Gi1/0/37", "Gi1/0/39"]
+        [1, 2, 5, 6, 9]    -> ["Gi1/0/1 - 2", "Gi1/0/5 - 6", "Gi1/0/9"]
     """
-    parts: list[str] = []
+    segments: list[str] = []
     for _, group in groupby(enumerate(sorted(set(numbers))), lambda t: t[1] - t[0]):
         run = list(group)
         start, end = run[0][1], run[-1][1]
-        parts.append(str(start) if start == end else f"{start} - {end}")
-    return ", ".join(parts)
+        if start == end:
+            segments.append(f"{prefix}{start}")
+        else:
+            segments.append(f"{prefix}{start} - {end}")
+    return segments
 
 
 def build_cisco_range(ports: list[str]) -> str:
     """
     Given a list of raw interface names (all from the same local_device),
-    return a Cisco ``interface range`` value string, e.g.:
+    return a Cisco ``interface range`` value string.
 
-        GigabitEthernet1/0/1 - 4, GigabitEthernet1/0/8,
-        TenGigabitEthernet1/1/1 - 2
+    Cisco syntax rules applied:
+    - Segments are separated by `` , `` (space before *and* after the comma).
+    - Every segment, whether a consecutive run or a lone port, carries the
+      full interface prefix (e.g. ``Gi1/0/``) so the IOS parser never sees
+      a bare port number without its module path.
+
+    Example output:
+        Gi1/0/1 - 3 , Gi1/0/8 , TenGigabitEthernet1/1/1 - 2
 
     Interfaces that cannot be parsed are appended verbatim at the end.
     """
@@ -120,13 +140,12 @@ def build_cisco_range(ports: list[str]) -> str:
             prefix, num = parsed
             prefix_map[prefix].append(num)
 
-    segments: list[str] = []
+    all_segments: list[str] = []
     for prefix in sorted(prefix_map):
-        nums = prefix_map[prefix]
-        segments.append(f"{prefix}{_collapse_to_ranges(nums)}")
+        all_segments.extend(_collapse_to_range_segments(prefix, prefix_map[prefix]))
 
-    segments.extend(unparseable)
-    return ", ".join(segments)
+    all_segments.extend(unparseable)
+    return " , ".join(all_segments)
 
 
 # ---------------------------------------------------------------------------
