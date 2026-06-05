@@ -19,6 +19,7 @@
 #   ansible-galaxy collection install cisco.ios ansible.netcommon
 
 - name: Collect LLDP Neighbors from Cisco Devices
+  connection: ansible.netcommon.network_cli
   hosts: "{{ hosts | default('all') }}"
   gather_facts: false
 
