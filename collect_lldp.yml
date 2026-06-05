@@ -22,13 +22,13 @@
   vars:
     ansible_connection: ansible.netcommon.network_cli
     ansible_network_os: cisco.ios.ios
-  hosts: "{{ hostlist | default('all') }}"
-  gather_facts: false
-
-  vars:
     csv_file: "{{ csv_file | mandatory('csv_file is required. Pass it with: -e csv_file=/path/to/output.csv') }}"
     # ansible_host defaults to hostMgmtIP (OOBM) from host_vars if not overridden
     ansible_host: "{{ hostMgmtIP }}"
+  hosts: "{{ hostlist | default('all') }}"
+  gather_facts: false
+
+    
 
   tasks:
     # ------------------------------------------------------------------ #
