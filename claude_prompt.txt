@@ -1,1 +1,9 @@
+For collect_lldp.yml:
 Make an ansible script that reads the LLDP neighbor table of a cisco device and write the values to a CSV file.  Make it so the output file is specified by a cli argument.
+
+For cdp_int_range.py:
+Write a python script that takes --csv-source as an argument with the path to a csv file, and generates another csv file at --output with the local_device name and the interface range in Cisco syntax for rows where neighbor_device is equal to a regex filter passed with --filter .  The input CSV file format is:
+
+local_device,model,site,local_port,neighbor_device,neighbor_port,neighbor_ip,platform,capabilities
+The output CSV file should be:
+local_device,int_range,filtered_by where the filtered_by column is the regex filter passed with --filter.

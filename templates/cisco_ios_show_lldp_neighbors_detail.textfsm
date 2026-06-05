@@ -20,8 +20,4 @@ Neighbor
   ^System\s+Description:
   ^System\s+Capabilities:\s+${CAPABILITIES}
   ^Platform:\s+${PLATFORM}
-  ^-{5,} -> Record,Start
-  ^$ -> Record,Start
-
-EOF
-  Record
+  ^-{5,} -> Record Start
