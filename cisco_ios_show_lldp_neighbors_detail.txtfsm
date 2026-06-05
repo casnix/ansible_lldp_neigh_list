@@ -1,0 +1,27 @@
+Value LOCAL_INTERFACE (\S+)
+Value NEIGHBOR (\S+)
+Value NEIGHBOR_INTERFACE (.+?)
+Value MGMT_ADDRESS (\S+)
+Value PLATFORM (.+?)
+Value CAPABILITIES (.+?)
+
+Start
+  ^-{5,} -> Start
+  ^Local\s+Intf:\s+${LOCAL_INTERFACE} -> Neighbor
+  ^. -> Start
+
+Neighbor
+  ^Chassis\s+id:\s+${NEIGHBOR}
+  ^Port\s+id:\s+${NEIGHBOR_INTERFACE}
+  ^Port\s+Description:\s+${NEIGHBOR_INTERFACE}
+  ^System\s+Name:\s+${NEIGHBOR}
+  ^Management\s+Addresses:
+  ^\s+IP:\s+${MGMT_ADDRESS}
+  ^System\s+Description:
+  ^System\s+Capabilities:\s+${CAPABILITIES}
+  ^Platform:\s+${PLATFORM}
+  ^-{5,} -> Record,Start
+  ^$ -> Record,Start
+
+EOF
+  Record

@@ -1,0 +1,98 @@
+---
+# collect_lldp.yml
+# Reads LLDP neighbor table from Cisco IOS/IOS-XE devices and writes results to CSV.
+#
+# Usage:
+#   ansible-playbook collect_lldp.yml -i inventory.ini -e "csv_file=/path/to/output.csv"
+#
+# The -e "csv_file=..." argument is required. Example:
+#   ansible-playbook collect_lldp.yml -i inventory.ini -e "csv_file=./reports/lldp.csv"
+#
+# Requirements:
+#   pip install ansible ansible-pylibssh
+#   ansible-galaxy collection install cisco.ios ansible.netcommon
+
+- name: Collect LLDP Neighbors from Cisco Devices
+  hosts: cisco_devices
+  gather_facts: false
+
+  vars:
+    csv_file: "{{ csv_file | mandatory('csv_file is required. Pass it with: -e csv_file=/path/to/output.csv') }}"
+
+  tasks:
+    # ------------------------------------------------------------------ #
+    # 1. Ensure the output directory exists (runs once on the controller) #
+    # ------------------------------------------------------------------ #
+    - name: Create output directory
+      ansible.builtin.file:
+        path: "{{ csv_file | dirname }}"
+        state: directory
+        mode: "0755"
+      run_once: true
+      delegate_to: localhost
+      when: (csv_file | dirname) not in ['', '.']
+
+    # ------------------------------------------------------------------ #
+    # 2. Write CSV header (runs once on the controller)                   #
+    # ------------------------------------------------------------------ #
+    - name: Write CSV header
+      ansible.builtin.lineinfile:
+        path: "{{ csv_file }}"
+        line: "local_device,local_port,neighbor_device,neighbor_port,neighbor_ip,platform,capabilities"
+        create: true
+        insertbefore: BOF
+      run_once: true
+      delegate_to: localhost
+
+    # ------------------------------------------------------------------ #
+    # 3. Pull structured LLDP data via the cisco.ios collection           #
+    # ------------------------------------------------------------------ #
+    - name: Gather LLDP neighbor detail (structured)
+      cisco.ios.ios_command:
+        commands:
+          - show lldp neighbors detail
+      register: lldp_raw
+
+    # ------------------------------------------------------------------ #
+    # 4. Parse the raw output with a TextFSM / NTC template               #
+    # ------------------------------------------------------------------ #
+    - name: Parse LLDP output with NTC TextFSM template
+      ansible.builtin.set_fact:
+        lldp_parsed: "{{ lldp_raw.stdout[0] | ansible.netcommon.parse_cli_textfsm(ntc_template) }}"
+      vars:
+        ntc_template: "{{ playbook_dir }}/templates/cisco_ios_show_lldp_neighbors_detail.textfsm"
+
+    # ------------------------------------------------------------------ #
+    # 5. Append one CSV row per neighbor (runs on the controller)         #
+    # ------------------------------------------------------------------ #
+    - name: Append LLDP neighbors to CSV
+      ansible.builtin.lineinfile:
+        path: "{{ csv_file }}"
+        line: >-
+          {{ inventory_hostname }},
+          {{- item.LOCAL_INTERFACE | default('') }},
+          {{- item.NEIGHBOR | default('') }},
+          {{- item.NEIGHBOR_INTERFACE | default('') }},
+          {{- item.MGMT_ADDRESS | default('') }},
+          {{- item.PLATFORM | default('') }},
+          {{- item.CAPABILITIES | default('') }}
+        insertafter: EOF
+      loop: "{{ lldp_parsed }}"
+      loop_control:
+        label: "{{ item.NEIGHBOR | default('unknown') }}"
+      delegate_to: localhost
+      when: lldp_parsed | length > 0
+
+    # ------------------------------------------------------------------ #
+    # 6. Summary                                                          #
+    # ------------------------------------------------------------------ #
+    - name: Print neighbor count
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: found {{ lldp_parsed | length }} LLDP neighbor(s)."
+
+  post_tasks:
+    - name: Report output file location
+      ansible.builtin.debug:
+        msg: "CSV written to {{ csv_file }}"
+      run_once: true
+      delegate_to: localhost

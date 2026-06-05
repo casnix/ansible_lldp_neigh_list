@@ -1,0 +1,1 @@
+Make an ansible script that reads the LLDP neighbor table of a cisco device and write the values to a CSV file.  Make it so the output file is specified by a cli argument.
