@@ -12,7 +12,7 @@
 #     --vault-password-file ~/.vault_pass \
 #     -e "csv_file=./reports/lldp.csv"
 #
-# Option -e "hosts=<host list>" can be passed.  Default is 'all'.
+# Option -e "hostlist=<host list>" can be passed.  Default is 'all'.
 #
 # Requirements:
 #   pip install ansible ansible-pylibssh
@@ -20,7 +20,7 @@
 
 - name: Collect LLDP Neighbors from Cisco Devices
   connection: ansible.netcommon.network_cli
-  hosts: "{{ hosts | default('all') }}"
+  hosts: "{{ hostlist | default('all') }}"
   gather_facts: false
 
   vars:
