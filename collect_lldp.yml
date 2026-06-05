@@ -3,21 +3,29 @@
 # Reads LLDP neighbor table from Cisco IOS/IOS-XE devices and writes results to CSV.
 #
 # Usage:
-#   ansible-playbook collect_lldp.yml -i inventory.ini -e "csv_file=/path/to/output.csv"
+#   ansible-playbook collect_lldp.yml -i inventory.ini \
+#     --vault-password-file /path/to/.vault_pass \
+#     -e "csv_file=/path/to/output.csv"
 #
 # The -e "csv_file=..." argument is required. Example:
-#   ansible-playbook collect_lldp.yml -i inventory.ini -e "csv_file=./reports/lldp.csv"
+#   ansible-playbook collect_lldp.yml -i inventory.ini \
+#     --vault-password-file ~/.vault_pass \
+#     -e "csv_file=./reports/lldp.csv"
+#
+# Option -e "hosts=<host list>" can be passed.  Default is 'all'.
 #
 # Requirements:
 #   pip install ansible ansible-pylibssh
 #   ansible-galaxy collection install cisco.ios ansible.netcommon
 
 - name: Collect LLDP Neighbors from Cisco Devices
-  hosts: cisco_devices
+  hosts: {{ hosts | default('all') }}
   gather_facts: false
 
   vars:
     csv_file: "{{ csv_file | mandatory('csv_file is required. Pass it with: -e csv_file=/path/to/output.csv') }}"
+    # ansible_host defaults to hostMgmtIP (OOBM) from host_vars if not overridden
+    ansible_host: "{{ hostMgmtIP }}"
 
   tasks:
     # ------------------------------------------------------------------ #
@@ -38,16 +46,16 @@
     - name: Write CSV header
       ansible.builtin.lineinfile:
         path: "{{ csv_file }}"
-        line: "local_device,local_port,neighbor_device,neighbor_port,neighbor_ip,platform,capabilities"
+        line: "local_device,model,site,local_port,neighbor_device,neighbor_port,neighbor_ip,platform,capabilities"
         create: true
         insertbefore: BOF
       run_once: true
       delegate_to: localhost
 
     # ------------------------------------------------------------------ #
-    # 3. Pull structured LLDP data via the cisco.ios collection           #
+    # 3. Pull LLDP neighbor detail from the device                        #
     # ------------------------------------------------------------------ #
-    - name: Gather LLDP neighbor detail (structured)
+    - name: Gather LLDP neighbor detail
       cisco.ios.ios_command:
         commands:
           - show lldp neighbors detail
@@ -64,12 +72,15 @@
 
     # ------------------------------------------------------------------ #
     # 5. Append one CSV row per neighbor (runs on the controller)         #
+    #    Includes MODEL and BASE_NUM (site code) from host_vars           #
     # ------------------------------------------------------------------ #
     - name: Append LLDP neighbors to CSV
       ansible.builtin.lineinfile:
         path: "{{ csv_file }}"
         line: >-
           {{ inventory_hostname }},
+          {{- MODEL | default('') }},
+          {{- BASE_NUM | default('') }},
           {{- item.LOCAL_INTERFACE | default('') }},
           {{- item.NEIGHBOR | default('') }},
           {{- item.NEIGHBOR_INTERFACE | default('') }},
@@ -88,7 +99,7 @@
     # ------------------------------------------------------------------ #
     - name: Print neighbor count
       ansible.builtin.debug:
-        msg: "{{ inventory_hostname }}: found {{ lldp_parsed | length }} LLDP neighbor(s)."
+        msg: "{{ inventory_hostname }} ({{ MODEL }}, site {{ BASE_NUM }}): found {{ lldp_parsed | length }} LLDP neighbor(s)."
 
   post_tasks:
     - name: Report output file location

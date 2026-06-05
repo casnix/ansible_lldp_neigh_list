@@ -1,0 +1,13 @@
+---
+BASE_NUM: 6 # Site or facility code
+TUN_ORIG: 253 # Our end of the tunnel. Should be SWITCH_NUM except for complicated topos where this cannot work
+TUN_IP: 254 # Far end of tunnel.
+TARGET_IP: 10.6.1.254 # Our in band mgmt, or loopback IP.  Used for protocols that should exist outside OOBM.
+PADDED_BASE_NUM: "006" # Site or facility code as a three character string, used for calculating interface names.
+SWITCH_NUM: 254 # What switch are we in the topology?
+INT_FULL_RANGE: "Gi0/0/0 - 1" # Self explanatory.  Excludes OOBM ports.
+hostMgmtIP: 10.88.6.254 # Primary OOBM ip
+hostBkMgmtIP: 10.89.6.254 # Backup to OOBM
+oobmPort: "GigabitEthernet0" # Self explanatory.
+MODEL: ISR4321
+MANUFACTURER: CISCO

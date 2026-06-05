@@ -1,0 +1,5 @@
+[switches]
+sw_example.example.com
+
+[routers]
+rtr_example.example.com
